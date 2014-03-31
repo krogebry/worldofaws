@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+##
+# Security Gaming
+#
+$:.push File.expand_path("../../lib/appops", __FILE__)
+#puts File.expand_path( "../../lib/appops", __FILE__ )
+require "pp"
+require "json"
+require "thor"
+require "dalli"
+require "mongo"
+require "colorize"
+require "aws-sdk-core"
+require "./lib/appops/config.rb"
+require "./lib/appops/appops.rb"
+
+GameSecCache = AppOps::Cache.new( "localhost:11211" )
+GameSecStore = Mongo::MongoClient.new()["game_sec"]
+GameSecConfig = AppOps::AwsConfig.new( "%s/.aws/game_sec" % ENV['HOME'] )
+
+account = GameSecConfig.get( "cloudrim" )
+
+#o = { owner: 'bryan_kroger@intuit.com' }
+#GameSecStore.collection( "security_groups" ).update( o, o.merge({ status: "BAD" }), { upsert: true })
+
+## Run the security groups
+#[ "us-west-1", "us-west-2", "us-east-1" ].each do |region_name|
+while( true )
+[ "us-west-2" ].each do |region_name|
+  ec2 = Aws::EC2.new({
+    region: region_name,
+    access_key_id: account["aws_access_key_id"],
+    secret_access_key: account["aws_secret_access_key"]
+  })
+
+  cache_key = "security_groups_%s" % region_name
+  GameSecCache.cache.set( cache_key, nil )
+  sgs = GameSecCache.get( cache_key ) do 
+    puts "Hitting cache for: %s".yellow % cache_key
+    ec2.describe_security_groups().security_groups.map( &:to_hash )
+  end
+
+  #pp sgs
+
+  sgs.each do |sg|
+    owner = sg[:tags].select{|tag| tag[:key] == "owner" }
+    if(owner.size > 0) 
+      puts "Found: %s in %s".yellow % [owner.first[:value], region_name]
+      sg[:ip_permissions].each do |perm|
+        status = "BAD"
+
+        perm[:ip_ranges].each do |range|
+          case range[:cidr_ip]
+          when "0.0.0.0/0"
+            puts "\tCIDR: %s".red % range[:cidr_ip]
+            status = "BAD"
+
+          when "10.0.0.0/8"
+            puts "\tCIDR: %s".green % range[:cidr_ip]
+            status = "GOOD"
+
+          else
+            puts "\tUnknown CIDR condition: %s".yellow % range
+
+          end
+        end
+
+        o = { owner: 'bryan_kroger@intuit.com' }
+        GameSecStore.collection( "security_groups" ).update( o, o.merge({ 
+          sg: { status: status },
+          nacl: { status: "BAD" }
+        }), { upsert: true })
+      end
+    end
+  end
+
+end
+puts "Sleeping".blue
+sleep 5
+puts "Awake".green
+end

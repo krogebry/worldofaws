@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>World of AWS</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #ffffff;
+				margin: 0px;
+				overflow: hidden;
+				background-color: #000000;
+			}
+			#info {
+				top: 0px; width: 100%;
+				color: #fff;
+				padding: 5px;
+				z-index: 100;
+				position: absolute;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="container"></div>
+		<script src="js/Detector.js"></script>
+		<script src="js/three.js"></script>
+		<script src="js/libs/stats.min.js"></script>
+		<script src="js/jquery-2.1.0.min.js"></script>
+		<script src="js/jquery.timer.js"></script>
+    <script src="js/controls/OrbitControls.js"></script>
+
+    <script src="js/fonts/gentilis_bold.typeface.js"></script>
+    <script src="js/fonts/gentilis_regular.typeface.js"></script>
+    <script src="js/fonts/optimer_bold.typeface.js"></script>
+    <script src="js/fonts/optimer_regular.typeface.js"></script>
+    <script src="js/fonts/helvetiker_bold.typeface.js"></script>
+    <script src="js/fonts/helvetiker_regular.typeface.js"></script>
+    <script src="js/fonts/droid/droid_sans_regular.typeface.js"></script>
+    <script src="js/fonts/droid/droid_sans_bold.typeface.js"></script>
+    <script src="js/fonts/droid/droid_serif_regular.typeface.js"></script>
+    <script src="js/fonts/droid/droid_serif_bold.typeface.js"></script>
+
+
+    <!--
+    <script src="js/THREEx.KeyboardState.js"></script>
+    <script src="js/THREEx.FullScreen.js"></script>
+    <script src="js/THREEx.WindowResize.js"></script>
+    -->
+
+		<script>
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var renderer, scene, camera, stats;
+			var objects = [];
+
+      var colors = [];
+
+      var sg_cube, nacl_cube;
+
+			var WIDTH = window.innerWidth,
+				HEIGHT = window.innerHeight;
+
+			init();
+			animate();
+
+			function init() {
+				camera = new THREE.PerspectiveCamera( 45, WIDTH / HEIGHT, 0.1, 20000 );
+				camera.position.set( 0, 150, 900 );
+        //camera.rotation.x = 45 * (Math.PI / 180);
+        //camera.rotation.set( 1, 1, 00 );
+
+        /**
+        controls = new THREE.FirstPersonControls(camera);
+        controls.movementSpeed = 0.1;
+        controls.lookSpeed = 0.001;
+        controls.lookVertical = true;
+        */
+
+				scene = new THREE.Scene();
+        camera.lookAt( scene.position );
+
+				//scene.fog = new THREE.Fog( 0x111111, 550, 500 );
+
+				root = new THREE.Object3D();
+
+				var subdivisions = 6;
+				var recursion = 1;
+
+        /**
+				var points = hilbert3D( new THREE.Vector3( 0,0,0 ), 25.0, recursion, 0, 1, 2, 3, 4, 5, 6, 7 );
+				var spline = new THREE.Spline( points );
+				var geometrySpline = new THREE.Geometry();
+				for ( var i = 0; i < points.length * subdivisions; i ++ ) {
+					var index = i / ( points.length * subdivisions );
+					var position = spline.getPoint( index );
+					geometrySpline.vertices[ i ] = new THREE.Vector3( position.x, position.y, position.z );
+				}
+				geometrySpline.computeLineDistances();
+				var object = new THREE.Line( 
+          geometrySpline, 
+          new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 2, gapSize: 1.5 }),
+          THREE.LineStrip );
+				objects.push( object );
+				scene.add( object );
+        */
+
+        //var plane = new THREE.Plane();
+        var plane_material = new THREE.MeshPhongMaterial({ color: 0x000000 });
+        var plane = new THREE.Mesh(new THREE.PlaneGeometry( 500, 500 ), plane_material);
+        plane.position.z = -180;
+        //plane.rotation.z = 180;
+        scene.add( plane );
+
+				var geometryCube = cube( 150 );
+				geometryCube.computeLineDistances();
+				nacl_cube = new THREE.Line( 
+          geometryCube, 
+          //new THREE.LineDashedMaterial({ color: 0xffaa00, dashSize: 3, gapSize: 1, linewidth: 2 }), 
+          new THREE.LineDashedMaterial({ color: 0xff0000, dashSize: 3, gapSize: 2, linewidth: 2 }), 
+          THREE.LinePieces );
+				objects.push( nacl_cube );
+				scene.add( nacl_cube );
+
+				var geometryCube = cube( 120 );
+				geometryCube.computeLineDistances();
+				sg_cube = new THREE.Line( 
+          geometryCube, 
+          new THREE.LineDashedMaterial({ color: 0xffaa00, dashSize: 3, gapSize: 1, linewidth: 2 }), 
+          //new THREE.LineDashedMaterial({ color: 0xff0000, dashSize: 3, gapSize: 1, linewidth: 2 }), 
+          THREE.LinePieces );
+				objects.push( sg_cube );
+				scene.add( sg_cube );
+
+        var timer = $.timer(function() {
+          //alert('This message was sent by a timer.');
+          $.ajax({
+            url: "/api/1.0/game/status?user=bryan_kroger@intuit.com",
+            dataType: "json"
+          }).done(function( data ){
+            console.log( data );
+
+            if(data.data.sg.status == "GOOD"){
+              var color = new THREE.Color( 0,255,0 );
+              var material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+
+            }else{
+              var color = new THREE.Color( 255,0,0 );
+              var material = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+
+            }
+            sg_cube.material.color = color;
+            sg_textGeo.material = material;
+
+            if(data.data.nacl.status == "GOOD"){
+              var color = new THREE.Color( 0,255,0 );
+              var material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+
+            }else{
+              var color = new THREE.Color( 255,0,0 );
+              var material = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+
+            }
+            nacl_cube.material.color = color;
+            nacl_textGeo.material = material;
+
+            //console.log( data );
+          });
+        });
+        timer.set({ time : 1000, autostart : true });
+
+
+
+        /**
+        geometry = new THREE.Geometry();
+        sprite = THREE.ImageUtils.loadTexture( "textures/sprites/ball.png" );
+        for ( i = 0; i < 10; i ++ ) {
+          var vertex = new THREE.Vector3();
+          //vertex.x = 1000 * Math.random() - 1000;
+          //vertex.y = 1000 * Math.random() - 1000;
+          vertex.z = 1000 * Math.random() + 200;
+          vertex.x = 20;
+          vertex.y = 20;
+          //vertex.z = 100;
+          geometry.vertices.push( vertex );
+          colors[ i ] = new THREE.Color( 0xffffff );
+          colors[ i ].setHSL( ( vertex.x + 1000 ) / 2000, 1, 0.5 );
+        }
+        geometry.colors = colors;
+        material = new THREE.ParticleSystemMaterial( { size: 85, map: sprite, vertexColors: true, transparent: true } );
+        material.color.setHSL( 1.0, 0.2, 0.7 );
+        particles = new THREE.ParticleSystem( geometry, material );
+        particles.sortParticles = true;
+        scene.add( particles );
+        */
+
+
+
+        var text = "World of AWS",
+            height = 10, size = 50, hover = 30,
+            curveSegments = 4,
+            bevelThickness = 2, bevelSize = 1.5, bevelSegments = 3, bevelEnabled = true,
+            font = "helvetiker", 
+            weight = "bold", 
+            style = "normal";
+        var textGeo = new THREE.TextGeometry( text, {
+          size: size,
+          height: height,
+          curveSegments: curveSegments,
+          font: font,
+          weight: weight,
+          style: style,
+          bevelThickness: bevelThickness,
+          bevelSize: bevelSize,
+          bevelEnabled: bevelEnabled,
+        });
+        textGeo.computeBoundingBox();
+        textGeo.computeVertexNormals();
+        var material = new THREE.MeshPhongMaterial({ color: 0xdddddd });
+        var textGeo = new THREE.Mesh(textGeo, material); 
+        textGeo.position.set( -220, 150, -100 );
+        scene.add( textGeo );
+
+        var text = "Security Group",
+            height = 2.5, size = 12, hover = 30,
+            curveSegments = 4,
+            bevelThickness = 2, bevelSize = 1.5, bevelSegments = 3, bevelEnabled = true,
+            font = "helvetiker", 
+            weight = "bold", 
+            style = "normal";
+        var textGeo = new THREE.TextGeometry( text, {
+          size: size,
+          height: height,
+          curveSegments: curveSegments,
+          font: font,
+          weight: weight,
+          style: style,
+          bevelThickness: bevelThickness,
+          bevelSize: bevelSize,
+          bevelEnabled: bevelEnabled,
+        });
+        textGeo.computeBoundingBox();
+        textGeo.computeVertexNormals();
+        var material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+        var sg_textGeo = new THREE.Mesh(textGeo, material); 
+        sg_textGeo.position.set( -60, 0, 00 );
+        scene.add( sg_textGeo );
+
+        var text = "Network Access Controls ( NACL )",
+            height = 2.5, size = 12, hover = 30,
+            curveSegments = 4,
+            bevelThickness = 2, bevelSize = 1.5, bevelSegments = 3, bevelEnabled = true,
+            font = "helvetiker", 
+            weight = "bold", 
+            style = "normal";
+        var textGeo = new THREE.TextGeometry( text, {
+          size: size,
+          height: height,
+          curveSegments: curveSegments,
+          font: font,
+          weight: weight,
+          style: style,
+          bevelThickness: bevelThickness,
+          bevelSize: bevelSize,
+          bevelEnabled: bevelEnabled,
+        });
+        textGeo.computeBoundingBox();
+        textGeo.computeVertexNormals();
+        var material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+        var nacl_textGeo = new THREE.Mesh(textGeo, material); 
+        nacl_textGeo.position.set( -120, -100, 00 );
+        scene.add( nacl_textGeo );
+
+        var light = new THREE.PointLight(0xffffff);
+        light.position.set(0,0,1000);
+        scene.add(light);
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setClearColor( 0x111111, 1 );
+				renderer.setSize( WIDTH, HEIGHT );
+
+        controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+				var container = document.getElementById( 'container' );
+				container.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				container.appendChild( stats.domElement );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+			}
+
+			function cube( size ) {
+				var h = size * 0.5;
+				var geometry = new THREE.Geometry();
+
+				geometry.vertices.push( new THREE.Vector3( -h, -h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( -h, h, -h ) );
+
+				geometry.vertices.push( new THREE.Vector3( -h, h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( h, h, -h ) );
+
+				geometry.vertices.push( new THREE.Vector3( h, h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( h, -h, -h ) );
+
+				geometry.vertices.push( new THREE.Vector3( h, -h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( -h, -h, -h ) );
+
+				geometry.vertices.push( new THREE.Vector3( -h, -h, h ) );
+				geometry.vertices.push( new THREE.Vector3( -h, h, h ) );
+
+				geometry.vertices.push( new THREE.Vector3( -h, h, h ) );
+				geometry.vertices.push( new THREE.Vector3( h, h, h ) );
+
+				geometry.vertices.push( new THREE.Vector3( h, h, h ) );
+				geometry.vertices.push( new THREE.Vector3( h, -h, h ) );
+
+				geometry.vertices.push( new THREE.Vector3( h, -h, h ) );
+				geometry.vertices.push( new THREE.Vector3( -h, -h, h ) );
+
+				geometry.vertices.push( new THREE.Vector3( -h, -h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( -h, -h, h ) );
+
+				geometry.vertices.push( new THREE.Vector3( -h, h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( -h, h, h ) );
+
+				geometry.vertices.push( new THREE.Vector3( h, h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( h, h, h ) );
+
+				geometry.vertices.push( new THREE.Vector3( h, -h, -h ) );
+				geometry.vertices.push( new THREE.Vector3( h, -h, h ) );
+
+				return geometry;
+
+			}
+
+			// port of Processing Java code by Thomas Diewald
+			// http://www.openprocessing.org/visuals/?visualID=15599
+
+			function hilbert3D( center, side, iterations, v0, v1, v2, v3, v4, v5, v6, v7 ) {
+
+				var half = side/2,
+
+					vec_s = [
+
+					new THREE.Vector3( center.x - half, center.y + half, center.z - half ),
+					new THREE.Vector3( center.x - half, center.y + half, center.z + half ),
+					new THREE.Vector3( center.x - half, center.y - half, center.z + half ),
+					new THREE.Vector3( center.x - half, center.y - half, center.z - half ),
+					new THREE.Vector3( center.x + half, center.y - half, center.z - half ),
+					new THREE.Vector3( center.x + half, center.y - half, center.z + half ),
+					new THREE.Vector3( center.x + half, center.y + half, center.z + half ),
+					new THREE.Vector3( center.x + half, center.y + half, center.z - half )
+
+					],
+
+					vec = [ vec_s[ v0 ], vec_s[ v1 ], vec_s[ v2 ], vec_s[ v3 ], vec_s[ v4 ], vec_s[ v5 ], vec_s[ v6 ], vec_s[ v7 ] ];
+
+				if ( --iterations >= 0 ) {
+					var tmp = [];
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 0 ], half, iterations, v0, v3, v4, v7, v6, v5, v2, v1 ) );
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 1 ], half, iterations, v0, v7, v6, v1, v2, v5, v4, v3 ) );
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 2 ], half, iterations, v0, v7, v6, v1, v2, v5, v4, v3 ) );
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 3 ], half, iterations, v2, v3, v0, v1, v6, v7, v4, v5 ) );
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 4 ], half, iterations, v2, v3, v0, v1, v6, v7, v4, v5 ) );
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 5 ], half, iterations, v4, v3, v2, v5, v6, v1, v0, v7 ) );
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 6 ], half, iterations, v4, v3, v2, v5, v6, v1, v0, v7 ) );
+					Array.prototype.push.apply( tmp, hilbert3D ( vec[ 7 ], half, iterations, v6, v5, v2, v1, v0, v3, v4, v7 ) );
+
+					return tmp;
+				}
+				return vec;
+			}
+
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+
+			function animate() {
+				requestAnimationFrame( animate );
+				render();
+				stats.update();
+			}
+
+			function render() {
+				var time = Date.now() * 0.001;
+				for ( var i = 0; i < objects.length; i ++ ) {
+					var object = objects[ i ];
+					//object.rotation.x = 0.25 * time * ( i%2 == 1 ? 1 : -1);
+					//object.rotation.x = 0.25 * time;
+					//object.rotation.y = 0.25 * time;
+				}
+				renderer.render( scene, camera );
+			}
+
+	</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+##
+# API service.
+#
+$:.push File.expand_path("../lib/", File.basename( __FILE__))
+require "pp"
+require "json"
+require "dalli"
+require "mongo"
+require "resque"
+require "sinatra"
+require "sinatra/namespace"
+require "colorize"
+require "aws-sdk-core"
+require "appops/resque/aws_launcher.rb"
+require "appops/appops.rb"
+require "appops/building_blocks.rb"
+require "appops/template.rb"
+
+begin
+  AppOpsCache = AppOps::Cache.new( "localhost:11211" )
+  AppOpsStore = Mongo::MongoClient.new()["appops"]
+  AppOpsConfig = AppOps::AwsConfig.new( "%s/.aws/config" % ENV['HOME'] )
+
+rescue => e
+  puts "Caught exception while creating connections: %s".red % e
+  pp e.backtrace
+
+end
+
+configure do
+  set :bind, "0.0.0.0"
+  set :port, 8082
+  set :protection, false
+end
+
+## Bring in the various API handlers.
+require "appops/api/aws.rb"
+require "appops/api/game.rb"
+require "appops/api/cloud_cache.rb"
+require "appops/api/config_sets.rb"
+require "appops/api/applications.rb"
+require "appops/api/elements.rb"
+require "appops/api/building_blocks.rb"
+
+namespace "/api" do
+  namespace "/1.0" do
+
+    get "/loggers" do
+      data = [{
+        name: "LogStash", id: "logstash"
+      },{
+        name: "Splunk", id: "splunk"
+      }]
+      { success: true, data: data }.to_json
+    end
+
+  end ## /1.0
+end ## /api
+
+
+
